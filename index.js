@@ -1,7 +1,7 @@
-require('dotenv').config()
-let token = process.env.token
-const { Client, Intents } = require('discord.js');
+let token = require("./secret.json").token
+const { Client, Intents, MessageEmbed } = require('discord.js');
 const schedule = require('node-schedule');
+const fs = require("fs")
 
 const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES, Intents.FLAGS.GUILD_MESSAGE_REACTIONS] });
 client.on('ready', () => {
@@ -55,13 +55,38 @@ client.on('messageCreate', async (message)  => {
         return;
     }
 
+    if(message.content == "!l"){
+        const jsonString = JSON.parse(fs.readFileSync("scores.json", 'utf8'))
+        const keys = Object.keys(jsonString)
+        const usernames  = []
+        for(let key of keys){
+            await message.guild.members.fetch(key).then(member => {
+                usernames.push(member.nickname)
+            })
+        }
+
+        const embed = new MessageEmbed()
+            .setTitle('Classement des nuls')
+            .setTimestamp()
+        for (let i = 0; i < keys.length; i++) {
+            const key = keys[i];
+            embed.addField(usernames[i], jsonString[key].toString())
+        }
+        message.channel.send({embeds: [embed]})
+    }
+
     if(message.content == "!lrf"){
         banLetter()
+        message.reply("Letter Changed")
         return;
     }
 
-    let messageParts = message.content.split(" ")
+    if(message.channelId != "666563454517248006"){
+        return;
+    }
 
+
+    let messageParts = message.content.split(" ")
 
     let messageWithoutLinks= ""
 
@@ -72,9 +97,19 @@ client.on('messageCreate', async (message)  => {
         messageWithoutLinks += part + " "
     })
     
-
+    //Lost
     if(messageWithoutLinks.toLowerCase().includes(bannedLetter)){
+        const id = message.author.id // => id of person who lost 
+
+        const jsonString = JSON.parse(fs.readFileSync("scores.json", 'utf8'))
+        if(!jsonString[id]){
+            jsonString[id] = 0
+        }
+        jsonString[id] += 1
+        fs.writeFileSync("scores.json", JSON.stringify(jsonString), 'utf8', 2)
+
         message.react(letterToEmoji[bannedLetter])
+
     }
 
 })
